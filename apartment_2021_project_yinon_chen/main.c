@@ -51,10 +51,15 @@ ApartmentNode* createApartmentNode(int code, int price, int short rooms,
                                    int short availableDay,int short availableMonth,int short availableYear,
                                    char *address,ApartmentNode* next);
 void checkMemoryAllocation(void* ptr);
+void deleteApartmentByCode(int code, apartmentList *lst);
+int checkIfNeedToDelete(time_t entryDate, int day);
+void deleteApartmentByDay(int day, apartmentList *lst);
 
 
 
 int main(int argc, const char * argv[]) {
+
+
     char *short_term_history[N], *inputLine;
     printPrompt();
     inputLine = getLine();
@@ -154,4 +159,73 @@ void checkMemoryAllocation(void* ptr)
         printf("memory allocation failed");
         exit(1);
     }
+}
+
+void deleteApartmentByCode(int code, apartmentList *lst)
+{
+    ApartmentNode* curr=lst->head;
+    ApartmentNode* prev=lst->head;
+    // If head node itself holds the key to be deleted
+    if (curr != NULL && curr->data.code==code)
+    {
+        lst->head=curr->next;// Changed head
+        free(curr);// free old head
+        return;
+    }
+
+    // Search for the key to be deleted, keep track of the
+    // previous node as we need to change 'prev->next'
+    while (curr != NULL && curr->data.code!=code)
+    {
+        prev = curr;
+        curr = curr->next;
+    }
+
+    // If key was not present in linked list
+    if (curr == NULL) return;
+
+    // Unlink the node from linked list
+    prev->next = curr->next;
+
+    free(curr);  // Free memory
+
+}
+
+void deleteApartmentByDay(int day, apartmentList *lst)
+{
+    ApartmentNode* curr=lst->head;
+    ApartmentNode* prev=lst->head;
+
+    while(curr!=NULL){//loop till the end of list
+
+        if(checkIfNeedToDelete(curr->data.entryDate,day))//check if the node was created in the right range time
+        {
+            prev->next = curr->next;
+            free(curr);
+        }
+        else
+            {
+
+            prev->next=curr;
+            curr=curr->next;
+        }
+
+
+    }
+}
+
+int checkIfNeedToDelete(time_t entryDate, int day){
+    time_t curr;
+    time(&curr);
+    //Returns the difference of seconds between time1 and time2 (time1-time2).
+    double diff_t= (difftime(curr,entryDate)/(60*60*24));
+    if(diff_t<=day)
+    {
+        return 1;
+    }
+    else
+        {
+        return 0;
+    }
+
 }
