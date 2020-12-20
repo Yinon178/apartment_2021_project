@@ -48,18 +48,59 @@ typedef struct apartmentList
 
 
 void printPrompt(void);
+char* getLine(void);
+void commandHandler(char* inputLine);
 
 
 
 int main(int argc, const char * argv[]) {
-    char *short_term_history[N];
+    char *short_term_history[N], *inputLine;
     printPrompt();
+    inputLine = getLine();
+    commandHandler(inputLine);
     return 0;
 }
 
-void printPrompt(void){
+void printPrompt(){
     printf("Please enter one of the following commands:\n"
            "add-apt, find-apt, buy-apt, delete-apt or exit\n"
            "For reconstruction commands, please enter:\n"
            "!!, !num, history, short_history or !num^str1^str2\n");
+}
+
+
+char* getLine() {
+    char * line = malloc(100), * linep = line;
+    int lenmax = 100, len = lenmax; // if we change lenmax to 1 we will realloc every char
+    int c;
+
+    if(line == NULL)
+        return NULL;
+
+    for(;;) {
+        c = fgetc(stdin);
+        if(c == EOF)
+            break;
+
+        if(--len == 0) {
+            len = lenmax;
+            char * linen = realloc(linep, lenmax *= 2);
+
+            if(linen == NULL) {
+                free(linep);
+                return NULL;
+            }
+            line = linen + (line - linep);
+            linep = linen;
+        }
+
+        if((*line++ = c) == '\n') // break if the char is \n
+            break;
+    }
+    *line = '\0'; // end of string
+    return linep;
+}
+
+void commandHandler(char* inputLine){
+    
 }
