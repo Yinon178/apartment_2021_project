@@ -1,10 +1,3 @@
-//
-//  main.c
-//  apartment_2021_project
-//
-//  Created by Yinon Horev on 20/12/2020.
-//
-
 #define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,8 +20,8 @@ typedef struct apartment
     int price;
     int short rooms;
     Date availableDate;
-    Date entryDate;
-    char address[];
+    time_t entryDate;
+    char *address;
 }Apartment;
 
 /* apartment node in the linked list */
@@ -48,6 +41,15 @@ typedef struct apartmentList
 
 
 void printPrompt(void);
+apartmentList makeEmptyList(void);
+int isEmptyList(apartmentList lst);
+void insertNodeToHead(apartmentList* lst, ApartmentNode* newHead);
+ApartmentNode* createApartmentNode(int code, int price, int short rooms,
+                                   int short entryDay,int short entryMonth,int short entryYear,
+                                   int short availableDay,int short availableMonth,int short availableYear,
+                                   char *address,ApartmentNode* next);
+void checkMemoryAllocation(void* ptr);
+
 
 
 
@@ -62,4 +64,56 @@ void printPrompt(void){
            "add-apt, find-apt, buy-apt, delete-apt or exit\n"
            "For reconstruction commands, please enter:\n"
            "!!, !num, history, short_history or !num^str1^str2\n");
+}
+
+apartmentList makeEmptyList()
+{
+    apartmentList result;
+
+    result.head = NULL;
+    return result;
+}
+
+int isEmptyList(apartmentList lst)
+{
+    return (lst.head == NULL);
+}
+
+ApartmentNode* createApartmentNode(int code, int price, int short rooms,
+        int short entryDay,int short entryMonth,int short entryYear,
+        int short availableDay,int short availableMonth,int short availableYear,
+        char *address,ApartmentNode* next)
+{
+
+    time_t currTime;
+    time(&currTime);
+    ApartmentNode *apt= (ApartmentNode *)malloc (sizeof(ApartmentNode));
+    checkMemoryAllocation(apt);
+
+    apt->data.code=code;
+    apt->data.price=price;
+    apt->data.rooms=rooms;
+    apt->data.availableDate.day=availableDay;
+    apt->data.availableDate.month=availableMonth;
+    apt->data.availableDate.year=availableYear;
+    apt->data.entryDate=currTime;
+    apt->data.address=address;
+    apt->next=next;
+
+    return apt;
+}
+
+void insertNodeToHead(apartmentList* lst, ApartmentNode* newHead)
+{
+    newHead->next = lst->head;
+    lst->head = newHead;
+}
+
+void checkMemoryAllocation(void* ptr)
+{
+    if (ptr == NULL)
+    {
+        printf("memory allocation failed");
+        exit(1);
+    }
 }
