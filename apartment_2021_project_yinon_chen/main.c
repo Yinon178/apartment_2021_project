@@ -1,6 +1,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <stdbool.h>
 
@@ -95,7 +96,7 @@ char* getLine() {
                 free(linep);
                 return NULL;
             }
-            line = linen + (line - linep);
+            line = linen + (line - linep); // re-points to the next char location in memory
             linep = linen;
         }
 
@@ -107,8 +108,42 @@ char* getLine() {
 }
 
 void commandHandler(char* inputLine){
-    
+    char command[14]; //short_history is the longest command with 13 chars
+    char* spaceLocation = NULL;
+    if (*inputLine != '!') {
+        spaceLocation = strchr(inputLine, (int)' ');
+        if ((spaceLocation - inputLine) > 10) {
+            printf("Error in input string check command entered, debug: command string too long");
+            exit(1);
+        }
+        if (spaceLocation == NULL){ // if space is not found in string then the command is not "apartemnt command"
+            spaceLocation = strchr(inputLine, (int)'\n');
+        }
+        
+    } else {
+        spaceLocation = inputLine + 1; // if ! is the first ch then command starts
+    }
+    printf(" test %d", (int)(spaceLocation - inputLine));
+    strncpy(command, inputLine, (int)(spaceLocation - inputLine));
+    /* handler part */
+    if (strcmp(command, "find-apt") == 0)
+        printf("find-aptt init");
+    else if (strcmp(command, "buy-apt") == 0)
+        printf("buy-apt init");
+    else if (strcmp(command, "add-apt") == 0)
+        printf("add-apt init");
+    else if (strcmp(command, "history") == 0)
+        printf("history init");
+    else if (strcmp(command, "delete-apt") == 0)
+        printf("delete-apt init");
+    else if (strcmp(command, "exit") == 0)
+        printf("exit init");
+    else if (strcmp(command, "!") == 0)
+        printf("! init");
+    else if (strcmp(command, "short_history") == 0)
+        printf("short_history init");
 }
+
 apartmentList makeEmptyList()
 {
     apartmentList result;
