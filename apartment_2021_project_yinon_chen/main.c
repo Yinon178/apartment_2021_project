@@ -8,7 +8,7 @@
 #define N 7
 
 /* global variable declaration */
-int counter = 0; // counter is the next apartment code
+int counter = 1; // counter is the next apartment code. Starts from 1 as writen in instructions
 
 typedef struct date
 {
@@ -55,9 +55,10 @@ void commandHandler(char* inputLine, apartmentList* aptList);
 apartmentList makeEmptyList(void);
 int isEmptyList(apartmentList lst);
 void insertNodeToHead(apartmentList* lst, ApartmentNode* newHead);
+void printApartmentNode(ApartmentNode *node);
 ApartmentNode* createApartmentNode(int code, int price, int short rooms,
                                    int short availableDay,int short availableMonth,int short availableYear,
-                                   char *address,ApartmentNode* next);
+                                   char* address,ApartmentNode* next);
 
 void deleteApartmentByCode(int code, apartmentList *lst);
 void checkMemoryAllocation(void* ptr);
@@ -69,9 +70,13 @@ void archiveLine(char *short_term_history[]); // TODO: Chen please add long term
 
 /* Apartment commands as described in the project instructions */
 void addApt(char* inputLine, apartmentList* aptList);
+void buyApt(char* inputLine, apartmentList* aptList);
+void deleteApt(char* inputLine, apartmentList* aptList);
+void gracefulExit(apartmentList* aptList);
 
 /* Utility */
 char **tokenize(char *line);
+void printApartment(Apartment *apartment);
 
 
 int main(int argc, const char * argv[]) {
@@ -143,7 +148,6 @@ void commandHandler(char* inputLine, apartmentList* aptList){
     } else {
         spaceLocation = inputLine + 1; // if ! is the first ch then command starts
     }
-    printf(" test %d", (int)(spaceLocation - inputLine));
     strncpy(command, inputLine, (int)(spaceLocation - inputLine));
     *(command + (int)(spaceLocation - inputLine)) = '\0'; // marking end of string
     
@@ -151,15 +155,15 @@ void commandHandler(char* inputLine, apartmentList* aptList){
     if (strcmp(command, "find-apt") == 0)
         printf("find-aptt init");
     else if (strcmp(command, "buy-apt") == 0)
-        printf("buy-apt init");
+        buyApt(inputLine, aptList);
     else if (strcmp(command, "add-apt") == 0)
         addApt(inputLine, aptList);
     else if (strcmp(command, "history") == 0)
         printf("history init");
     else if (strcmp(command, "delete-apt") == 0)
-        printf("delete-apt init");
+        deleteApt(inputLine, aptList);
     else if (strcmp(command, "exit") == 0)
-        printf("exit init");
+        gracefulExit(aptList);
     else if (strcmp(command, "!") == 0)
         printf("! init");
     else if (strcmp(command, "short_history") == 0)
@@ -181,14 +185,17 @@ int isEmptyList(apartmentList lst)
 
 ApartmentNode* createApartmentNode(int code, int price, int short rooms,
         int short availableDay,int short availableMonth,int short availableYear,
-        char *address,ApartmentNode* next)
+        char* address, ApartmentNode* next)
 {
 
     time_t currTime;
     time(&currTime);
     ApartmentNode *apt= (ApartmentNode *)malloc (sizeof(ApartmentNode));
     checkMemoryAllocation(apt);
-
+    
+    char *strAdress = (char *)malloc(strlen(address) * sizeof(char));
+    strcpy(strAdress, address);
+    
     apt->data.code=code;
     apt->data.price=price;
     apt->data.rooms=rooms;
@@ -196,7 +203,7 @@ ApartmentNode* createApartmentNode(int code, int price, int short rooms,
     apt->data.availableDate.month=availableMonth;
     apt->data.availableDate.year=availableYear;
     apt->data.entryDate=currTime;
-    apt->data.address=address;
+    apt->data.address=strAdress;
     apt->next=next;
 
     return apt;
@@ -250,23 +257,28 @@ void deleteApartmentByCode(int code, apartmentList *lst)
 void deleteApartmentByDay(int day, apartmentList *lst)
 {
     ApartmentNode* curr=lst->head;
-    ApartmentNode* prev=lst->head;
+    ApartmentNode* next=lst->head;
 
     while(curr!=NULL){//loop till the end of list
 
         if(checkIfNeedToDelete(curr->data.entryDate,day))//check if the node was created in the right range time
         {
-            prev->next = curr->next;
+            next = curr->next;
             free(curr);
         }
-        else
-            {
+        curr=curr->next;
+    }
+}
 
-            prev->next=curr;
-            curr=curr->next;
-        }
+void freeApartList(apartmentList *lst)
+{
+    ApartmentNode* curr=lst->head;
+    ApartmentNode* next=lst->head;
 
-
+    while(curr!=NULL){ //loop till the end of list
+        next = curr->next;
+        free(curr); // TODO: BUG
+        curr= next;
     }
 }
 
@@ -291,19 +303,37 @@ void addApt(char* inputLine, apartmentList* aptList){
 //    strcpy(cpInputLine, inputLine);
     ApartmentNode* apartmentNode;
     char **tokens = tokenize(inputLine);
-    // TODO: del when we feel safe with it.
-    printf("address: %s\n", tokens[1]);
-    printf("price: %d\n", (int)strtol(tokens[2],NULL ,10));
-    printf("rooms: %d\n", (int)strtol(tokens[3],NULL ,10));
-    printf("dd: %d\n", (int)strtol(tokens[4],NULL ,10));
-    printf("mm: %d\n", (int)strtol(tokens[5],NULL ,10));
-    printf("yy: %d\n", (int)strtol(tokens[6],NULL ,10));
-    apartmentNode = createApartmentNode(counter, (int)strtol(tokens[2],NULL ,10), (int)strtol(tokens[3],NULL ,10), (short int)strtol(tokens[4],NULL ,10), (short int)strtol(tokens[5],NULL ,10), (short int)strtol(tokens[6],NULL ,10), tokens[1], NULL);
+    
+    apartmentNode = createApartmentNode(counter, (int)strtol(tokens[2],NULL ,10),
+                                        (int)strtol(tokens[3],NULL ,10),
+                                        (short int)strtol(tokens[4],NULL ,10),
+                                        (short int)strtol(tokens[5],NULL ,10),
+                                        (short int)strtol(tokens[6],NULL ,10),
+                                        tokens[1], NULL);
+    
     insertNodeToHead(aptList, apartmentNode);
     counter++;
     free(inputLine); // strtok manipulated string therefore it must be freed here
     free(tokens);
 }
+
+void buyApt(char* inputLine, apartmentList* aptList){
+    char **tokens = NULL;
+    tokens = tokenize(inputLine);
+    deleteApartmentByCode((int)strtol(tokens[1],NULL ,10), aptList);
+}
+
+void deleteApt(char* inputLine, apartmentList* aptList){
+    char **tokens = NULL;
+    tokens = tokenize(inputLine);
+    deleteApartmentByDay((int)strtol(tokens[2],NULL ,10), aptList);
+}
+
+void gracefulExit(apartmentList* aptList){
+    freeApartList(aptList);
+    exit(0);
+}
+
 
 char **tokenize(char *line){
     int i = 0, tlen = 0;
@@ -330,4 +360,28 @@ char **tokenize(char *line){
     }
     tokens[i] = NULL;
     return tokens;
+}
+
+void printApartmentNode(ApartmentNode *node){
+    printApartment(&(node->data));
+}
+
+void printApartment(Apartment *apartment){
+    
+    struct tm tm = *localtime(&(apartment->entryDate)); // breakes down to a manageable struct of time
+    printf("Apt details:\n"
+           "Code: %d\n"
+           "Address: %s\n"
+           "Number of rooms: %d\n"
+           "Price: %d\n"
+           "Entry date: %d.%d.%d\n"
+           "Database entry date: %d-%02d-%02d",
+           apartment->code,
+           apartment->address,
+           apartment->rooms,
+           apartment->price,
+           apartment->availableDate.day,
+           apartment->availableDate.month,
+           apartment->availableDate.year,
+           tm.tm_mday, tm.tm_mon, tm.tm_year - 100);
 }
