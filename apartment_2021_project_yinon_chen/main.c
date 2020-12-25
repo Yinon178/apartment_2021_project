@@ -7,6 +7,9 @@
 
 #define N 7
 
+/* global variable declaration */
+int counter = 0; // counter is the next apartment code
+
 typedef struct date
 {
     int short day;
@@ -40,31 +43,48 @@ typedef struct apartmentList
     ApartmentNode *head;
 }apartmentList;
 
-
+/*Prints application manual*/
 void printPrompt(void);
+
+/*Reads a line from the user*/
 char* getLine(void);
-void commandHandler(char* inputLine);
+
+/* Calls the relevant command by the input from the user*/
+void commandHandler(char* inputLine, apartmentList* aptList);
+/*utility functions apartment linked list*/
 apartmentList makeEmptyList(void);
 int isEmptyList(apartmentList lst);
 void insertNodeToHead(apartmentList* lst, ApartmentNode* newHead);
 ApartmentNode* createApartmentNode(int code, int price, int short rooms,
-                                   int short entryDay,int short entryMonth,int short entryYear,
                                    int short availableDay,int short availableMonth,int short availableYear,
                                    char *address,ApartmentNode* next);
-void checkMemoryAllocation(void* ptr);
+
 void deleteApartmentByCode(int code, apartmentList *lst);
+void checkMemoryAllocation(void* ptr);
+
 int checkIfNeedToDelete(time_t entryDate, int day);
 void deleteApartmentByDay(int day, apartmentList *lst);
+/*Archives the line to short term history and if needed to long term*/
+void archiveLine(char *short_term_history[]); // TODO: Chen please add long term history management
 
+/* Apartment commands as described in the project instructions */
+void addApt(char* inputLine, apartmentList* aptList);
+
+/* Utility */
+char **tokenize(char *line);
 
 
 int main(int argc, const char * argv[]) {
-
-
     char *short_term_history[N], *inputLine;
+    apartmentList aptList;
+    aptList = makeEmptyList();
+    // TODO: Declare long term history linked list here
     printPrompt();
-    inputLine = getLine();
-    commandHandler(inputLine);
+    while (1) {
+        inputLine = getLine();
+        commandHandler(inputLine, &aptList);
+    }
+    
     return 0;
 }
 
@@ -107,7 +127,7 @@ char* getLine() {
     return linep;
 }
 
-void commandHandler(char* inputLine){
+void commandHandler(char* inputLine, apartmentList* aptList){
     char command[14]; //short_history is the longest command with 13 chars
     char* spaceLocation = NULL;
     if (*inputLine != '!') {
@@ -125,13 +145,15 @@ void commandHandler(char* inputLine){
     }
     printf(" test %d", (int)(spaceLocation - inputLine));
     strncpy(command, inputLine, (int)(spaceLocation - inputLine));
+    *(command + (int)(spaceLocation - inputLine)) = '\0'; // marking end of string
+    
     /* handler part */
     if (strcmp(command, "find-apt") == 0)
         printf("find-aptt init");
     else if (strcmp(command, "buy-apt") == 0)
         printf("buy-apt init");
     else if (strcmp(command, "add-apt") == 0)
-        printf("add-apt init");
+        addApt(inputLine, aptList);
     else if (strcmp(command, "history") == 0)
         printf("history init");
     else if (strcmp(command, "delete-apt") == 0)
@@ -158,7 +180,6 @@ int isEmptyList(apartmentList lst)
 }
 
 ApartmentNode* createApartmentNode(int code, int price, int short rooms,
-        int short entryDay,int short entryMonth,int short entryYear,
         int short availableDay,int short availableMonth,int short availableYear,
         char *address,ApartmentNode* next)
 {
@@ -263,4 +284,50 @@ int checkIfNeedToDelete(time_t entryDate, int day){
         return 0;
     }
 
+}
+
+void addApt(char* inputLine, apartmentList* aptList){
+//    char* cpInputLine = NULL;
+//    strcpy(cpInputLine, inputLine);
+    ApartmentNode* apartmentNode;
+    char **tokens = tokenize(inputLine);
+    // TODO: del when we feel safe with it.
+    printf("address: %s\n", tokens[1]);
+    printf("price: %d\n", (int)strtol(tokens[2],NULL ,10));
+    printf("rooms: %d\n", (int)strtol(tokens[3],NULL ,10));
+    printf("dd: %d\n", (int)strtol(tokens[4],NULL ,10));
+    printf("mm: %d\n", (int)strtol(tokens[5],NULL ,10));
+    printf("yy: %d\n", (int)strtol(tokens[6],NULL ,10));
+    apartmentNode = createApartmentNode(counter, (int)strtol(tokens[2],NULL ,10), (int)strtol(tokens[3],NULL ,10), (short int)strtol(tokens[4],NULL ,10), (short int)strtol(tokens[5],NULL ,10), (short int)strtol(tokens[6],NULL ,10), tokens[1], NULL);
+    insertNodeToHead(aptList, apartmentNode);
+    counter++;
+    free(inputLine); // strtok manipulated string therefore it must be freed here
+    free(tokens);
+}
+
+char **tokenize(char *line){
+    int i = 0, tlen = 0;
+    char **tokens = NULL, *token, *delimiter;
+    delimiter = " ";
+    token = strtok(line,delimiter);
+    while (token != NULL) {
+        if (i == tlen) {
+            // Allocate more space
+            tlen += 3;
+            tokens = realloc(tokens, tlen * sizeof *tokens);
+            checkMemoryAllocation(tokens);
+        }
+        tokens[i] = token;
+        if (*(token+strlen(line)+1) == '\"') { // handles " mark and add a pointer to the corret token
+            delimiter = "\"";
+            token = strtok(NULL, delimiter);
+            i += 1;
+            tokens[i] = token; // skip the " mark
+            delimiter = " ";
+        }
+        token = strtok(NULL, delimiter);
+        i += 1;
+    }
+    tokens[i] = NULL;
+    return tokens;
 }
