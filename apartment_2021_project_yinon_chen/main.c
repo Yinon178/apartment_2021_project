@@ -103,10 +103,14 @@ char **tokenize(char *line);
 void printApartment(Apartment *apartment);
 
 /* History commands*/
-HistoryList makeEmptyHistoryList();
+HistoryList makeEmptyHistoryList(void);
+
 void insertToArchive(HistoryList *historyList,char *command);
+
 HistoryListNode* createNewListNode(char* command);
+
 bool isEmptyHisList(HistoryList *historyList);
+
 void insertNodeToStartList(HistoryList *historyList, HistoryListNode *head);
 
 int main(int argc, const char *argv[]) {
@@ -119,7 +123,7 @@ int main(int argc, const char *argv[]) {
     printPrompt();
     while (1) {
         inputLine = getLine();
-        commandHandler(inputLine, &aptList,&historyList);
+        commandHandler(inputLine, &aptList, &historyList);
         index++;
     }
 
@@ -205,12 +209,13 @@ void commandHandler(char *inputLine, apartmentList *aptList, HistoryList *histor
 
 
 void historyHandler(char *inputLine, int index, char *short_term_history[N], HistoryList *historyList) {
-    char fullCommandLine[strlen(inputLine)];
-    strcpy(fullCommandLine, inputLine);
+    char *inputLineCopy = malloc(sizeof(char) * strlen(inputLine)); // TODO: free it up in exit
+    checkMemoryAllocation(inputLineCopy);
+    strcpy(inputLineCopy, inputLine);
 
     if (index >= 6)//check if the array is full
     {
-        insertToArchive(historyList,short_term_history[6]);
+        insertToArchive(historyList, short_term_history[6]);
 
     }
     //if not full start to push string to th
@@ -220,7 +225,7 @@ void historyHandler(char *inputLine, int index, char *short_term_history[N], His
     }
 
 
-    short_term_history[0] = fullCommandLine;
+    short_term_history[0] = inputLineCopy;
 
 }
 
