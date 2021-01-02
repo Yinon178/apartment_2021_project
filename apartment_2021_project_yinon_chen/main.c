@@ -5,6 +5,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdbool.h>
+#include <limits.h>
 
 #define N 7
 
@@ -69,7 +70,11 @@ apartmentList makeEmptyList(void);
 
 int isEmptyList(apartmentList lst);
 
-void insertNodeToHead(apartmentList *lst, ApartmentNode *newHead);
+void insertNodeToTail(apartmentList *lst, ApartmentNode *newHead);
+
+void apartmentCpy(ApartmentNode* destination, ApartmentNode* source);
+
+void printApartmentList(apartmentList *apartmentList);
 
 void printApartmentNode(ApartmentNode *node);
 
@@ -81,7 +86,7 @@ void deleteApartmentByCode(int code, apartmentList *lst);
 
 void checkMemoryAllocation(void *ptr);
 
-int checkIfNeedToDelete(time_t entryDate, int day);
+int isEnteredInLastDays(time_t entryDate, int day);
 
 void deleteApartmentByDay(int day, apartmentList *lst);
 
@@ -93,12 +98,20 @@ void addApt(char *inputLine, apartmentList *aptList);
 
 void buyApt(char *inputLine, apartmentList *aptList);
 
+void findApt(char *inputLine, apartmentList *aptList);
+
 void deleteApt(char *inputLine, apartmentList *aptList);
 
 void gracefulExit(apartmentList *aptList);
 
 /* Utility */
 char **tokenize(char *line);
+
+void filterApartmentsConditions(apartmentList* apartmentlst, apartmentList* filteredApartmentlst, int maxPrice,
+                                         int minPrice, short int minNumRooms,
+                                         short int maxNumRooms, Date d, int enter);
+
+int compareDates(struct date d1, struct date d2);
 
 void printApartment(Apartment *apartment);
 
@@ -107,11 +120,11 @@ HistoryList makeEmptyHistoryList(void);
 
 void insertToArchive(HistoryList *historyList,char *command);
 
-HistoryListNode* createNewListNode(char* command);
+HistoryListNode* createNewHistoryNode(char* command);
 
-bool isEmptyHisList(HistoryList *historyList);
+bool isEmptyHistoryList(HistoryList *historyList);
 
-void insertNodeToStartList(HistoryList *historyList, HistoryListNode *head);
+void insertHistoryNodeToHead(HistoryList *historyList, HistoryListNode *head);
 
 int main(int argc, const char *argv[]) {
     char *short_term_history[N], *inputLine;
@@ -190,7 +203,7 @@ void commandHandler(char *inputLine, apartmentList *aptList, HistoryList *histor
 
     /* handler part */
     if (strcmp(command, "find-apt") == 0)
-        printf("find-aptt init");
+        findApt(inputLine, aptList);
     else if (strcmp(command, "buy-apt") == 0)
         buyApt(inputLine, aptList);
     else if (strcmp(command, "add-apt") == 0)
@@ -232,13 +245,13 @@ void historyHandler(char *inputLine, int index, char *short_term_history[N], His
 void insertToArchive(HistoryList *historyList,char *command)
 {
     HistoryListNode *newHead;
-    newHead = createNewListNode(command);
-    insertNodeToStartList(historyList, newHead);
+    newHead = createNewHistoryNode(command);
+    insertHistoryNodeToHead(historyList, newHead);
 
 }
 
 
-HistoryListNode* createNewListNode(char* command)
+HistoryListNode* createNewHistoryNode(char* command)
 {
     HistoryListNode* res;
     res = (HistoryListNode*)malloc(sizeof(HistoryListNode));
@@ -247,9 +260,9 @@ HistoryListNode* createNewListNode(char* command)
     return res;
 }
 
-void insertNodeToStartList(HistoryList *historyList, HistoryListNode *head)
+void insertHistoryNodeToHead(HistoryList *historyList, HistoryListNode *head)
 {
-    if (isEmptyHisList(historyList) == true)
+    if (isEmptyHistoryList(historyList) == true)
     {
         head->next = NULL;
         historyList->head = historyList->tail = head;
@@ -261,7 +274,7 @@ void insertNodeToStartList(HistoryList *historyList, HistoryListNode *head)
     }
 }
 
-bool isEmptyHisList(HistoryList *historyList)
+bool isEmptyHistoryList(HistoryList *historyList)
 {
     if (historyList->head == NULL)
         return true;
@@ -305,7 +318,7 @@ ApartmentNode *createApartmentNode(int code, int price, int short rooms,
     return apt;
 }
 
-void insertNodeToHead(apartmentList *lst, ApartmentNode *newHead) {
+void insertNodeToTail(apartmentList *lst, ApartmentNode *newHead) {
     if (isEmptyList(*lst) == true)
         lst->head = lst->tail = newHead;
     else {
@@ -313,6 +326,11 @@ void insertNodeToHead(apartmentList *lst, ApartmentNode *newHead) {
         lst->tail = newHead;
     }
     newHead->next = NULL;
+}
+
+void apartmentCpy(ApartmentNode* destination, ApartmentNode* source){
+    destination->data = source->data;
+    destination->next = source->next;
 }
 
 void checkMemoryAllocation(void *ptr) {
@@ -354,7 +372,7 @@ void deleteApartmentByDay(int day, apartmentList *lst) {
     ApartmentNode *next = lst->head;
     lst->tail = NULL;
 
-    if (checkIfNeedToDelete(curr->data.entryDate, day))//check if we need to free all list
+    if (isEnteredInLastDays(curr->data.entryDate, day))//check if we need to free all list
     {
         lst->head = NULL;
     }
@@ -362,7 +380,7 @@ void deleteApartmentByDay(int day, apartmentList *lst) {
     while (curr != NULL) {//loop till the end of list
 
         next = curr->next;
-        if (checkIfNeedToDelete(curr->data.entryDate, day))//check if the node was created in the right range time
+        if (isEnteredInLastDays(curr->data.entryDate, day))//check if the node was created in the right range time
         {
             free(curr);
         } else {
@@ -383,7 +401,7 @@ void freeApartList(apartmentList *lst) {
     }
 }
 
-int checkIfNeedToDelete(time_t entryDate, int day) {
+int isEnteredInLastDays(time_t entryDate, int day) {
     time_t curr;
     time(&curr);
     //Returns the difference of seconds between time1 and time2 (time1-time2).
@@ -406,10 +424,10 @@ void addApt(char *inputLine, apartmentList *aptList) {
                                         (int) strtol(tokens[3], NULL, 10),
                                         (short int) strtol(tokens[4], NULL, 10),
                                         (short int) strtol(tokens[5], NULL, 10),
-                                        (short int) strtol(tokens[6], NULL, 10),
+                                        (short int) (strtol(tokens[6], NULL, 10) + 2000),
                                         tokens[1], NULL);
 
-    insertNodeToHead(aptList, apartmentNode);
+    insertNodeToTail(aptList, apartmentNode);
     counter++;
     free(inputLine); // strtok manipulated string therefore it must be freed here
     free(tokens);
@@ -425,6 +443,88 @@ void deleteApt(char *inputLine, apartmentList *aptList) {
     char **tokens = NULL;
     tokens = tokenize(inputLine);
     deleteApartmentByDay((int) strtol(tokens[2], NULL, 10), aptList);
+}
+
+void findApt(char *inputLine, apartmentList *aptList){
+    /* This function will build a dynamic if statment and serch for apartments that checks out with this if*/
+    apartmentList filteredApartmentList = makeEmptyList();
+    int maxPrice=INT_MAX, minPrice=0, enter=INT_MAX, i=1, dummy;
+    Date d;
+    /* initalizing to a passed date */
+    d.day = 1;
+    d.month = 1;
+    d.year = 2020;
+    short int minNumRooms=-1, maxNumRooms=INT8_MAX;
+    char **tokens = tokenize(inputLine);
+    bool fromLowToHigh=false, fromHighTolow=false;
+    
+    /* Parsing string */
+    while (tokens[i] != NULL) {
+        if (!strcmp(tokens[i], "–MaxPrice")) {
+            i++;
+            maxPrice = (int)strtol(tokens[i], NULL, 10);
+        }
+        else if (!strcmp(tokens[i], "–MinPrice")) {
+            i++;
+            minPrice = (int)strtol(tokens[i], NULL, 10);
+        }
+        else if (!strcmp(tokens[i], "–MinNumRooms")) {
+            i++;
+            minNumRooms = (short int)strtol(tokens[i], NULL, 10);
+        }
+        else if (!strcmp(tokens[i], "–MaxNumRooms")) {
+            i++;
+            maxNumRooms = (short int)strtol(tokens[i], NULL, 10);
+        }
+        else if (!strcmp(tokens[i], "-Date")) {
+            i++;
+            sscanf(tokens[i], "%2hd%2hd%4hd", &d.day, &d.month, &d.year);
+        }
+        else if (!strcmp(tokens[i], "–Enter")) {
+            i++;
+            enter = (short int)strtol(tokens[i], NULL, 10);
+        }
+        else if (!strcmp(tokens[i], "-s")) {
+            fromLowToHigh=true;
+        }
+        else if (!strcmp(tokens[i], "-sr")) {
+            fromHighTolow=true;
+        }
+        else {
+            printf("Error parsing %s \n line number: %d ", tokens[i], __LINE__);
+            exit(1);
+        }
+        i++;
+    }
+    filterApartmentsConditions(aptList, &filteredApartmentList , maxPrice, minPrice, minNumRooms, maxNumRooms, d, enter);
+    if (fromLowToHigh)
+        printf("sorted fromLowToHigh");
+    else if (fromHighTolow)
+        printf("sorted fromHighTolow");
+    else
+        printApartmentList(&filteredApartmentList);
+    
+}
+
+void filterApartmentsConditions(apartmentList* apartmentlst, apartmentList* filteredApartmentlst, int maxPrice,
+                                         int minPrice, short int minNumRooms,
+                                         short int maxNumRooms,Date d, int enter){
+    ApartmentNode* head = apartmentlst->head;
+    while (head != NULL) {
+        if (head->data.price > minPrice
+            && head->data.price <= maxPrice
+            && head->data.rooms >= minNumRooms
+            && head->data.rooms <= maxNumRooms
+            && compareDates(d, head->data.availableDate) == 1
+            && isEnteredInLastDays(head->data.entryDate, enter)) {
+            ApartmentNode *apt = (ApartmentNode *) malloc(sizeof(ApartmentNode));
+            checkMemoryAllocation(apt);
+            apartmentCpy(apt, head);
+            insertNodeToTail(filteredApartmentlst, apt);
+        }
+        head = head->next;
+    }
+    
 }
 
 void gracefulExit(apartmentList *aptList) {
@@ -460,6 +560,14 @@ char **tokenize(char *line) {
     return tokens;
 }
 
+void printApartmentList(apartmentList *apartmentList) {
+    ApartmentNode *curr = apartmentList->head;
+    while (curr != NULL) {//loop till the end of list
+        printApartmentNode(curr);
+        curr = curr->next;
+    }
+}
+
 void printApartmentNode(ApartmentNode *node) {
     printApartment(&(node->data));
 }
@@ -473,7 +581,7 @@ void printApartment(Apartment *apartment) {
            "Number of rooms: %d\n"
            "Price: %d\n"
            "Entry date: %d.%d.%d\n"
-           "Database entry date: %d-%02d-%02d",
+           "Database entry date: %d.%d.%d\n",
            apartment->code,
            apartment->address,
            apartment->rooms,
@@ -481,7 +589,32 @@ void printApartment(Apartment *apartment) {
            apartment->availableDate.day,
            apartment->availableDate.month,
            apartment->availableDate.year,
-           tm.tm_mday, tm.tm_mon, tm.tm_year - 100);
+           tm.tm_mday, tm.tm_mon + 1, tm.tm_year - 100);
+}
+
+int compareDates(struct date d1, struct date d2)
+{
+    if (d1.year < d2.year)
+       return -1;
+
+    else if (d1.year > d2.year)
+       return 1;
+
+    if (d1.year == d2.year)
+    {
+         if (d1.month<d2.month)
+              return -1;
+         else if (d1.month>d2.month)
+              return 1;
+         else if (d1.day<d2.day)
+              return -1;
+         else if(d1.day>d2.day)
+              return 1;
+         else
+              return 0;
+    }
+    printf("Error\n line number: %d ", __LINE__);
+    return 0;
 }
 
 HistoryList makeEmptyHistoryList() {
