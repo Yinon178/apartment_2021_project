@@ -90,6 +90,19 @@ int isEnteredInLastDays(time_t entryDate, int day);
 
 void deleteApartmentByDay(int day, apartmentList *lst);
 
+struct apartmentNode* SortedMerge(struct apartmentNode* a, struct apartmentNode* b);
+
+void FrontBackSplit(struct apartmentNode* source,
+                    struct apartmentNode** frontRef,
+                    struct apartmentNode** backRef);
+
+/*MergeSort functions*/
+void MergeSort(ApartmentNode** thead, bool ascend_flag);
+
+void SplitList(ApartmentNode* source, ApartmentNode** front, ApartmentNode** back);
+
+ApartmentNode* MergeSortedList(ApartmentNode* lst1, ApartmentNode* lst2, bool ascend_flag);
+
 /*Archives the line to short term history and if needed to long term*/
 void archiveLine(char *short_term_history[]); // TODO: Chen please add long term history management
 
@@ -107,6 +120,7 @@ void gracefulExit(apartmentList *aptList);
 /* Utility */
 char **tokenize(char *line);
 
+/* Checks if the serch conditions are met and filter the apartment list by it*/
 void filterApartmentsConditions(apartmentList* apartmentlst, apartmentList* filteredApartmentlst, int maxPrice,
                                          int minPrice, short int minNumRooms,
                                          short int maxNumRooms, Date d, int enter);
@@ -218,6 +232,8 @@ void commandHandler(char *inputLine, apartmentList *aptList, HistoryList *histor
         printf("! init");
     else if (strcmp(command, "short_history") == 0)
         printf("short_history init");
+    
+    free(inputLine); // Some commands use strtok which manipulates string therefore it must be freed here
 }
 
 
@@ -429,7 +445,6 @@ void addApt(char *inputLine, apartmentList *aptList) {
 
     insertNodeToTail(aptList, apartmentNode);
     counter++;
-    free(inputLine); // strtok manipulated string therefore it must be freed here
     free(tokens);
 }
 
@@ -448,7 +463,7 @@ void deleteApt(char *inputLine, apartmentList *aptList) {
 void findApt(char *inputLine, apartmentList *aptList){
     /* This function will build a dynamic if statment and serch for apartments that checks out with this if*/
     apartmentList filteredApartmentList = makeEmptyList();
-    int maxPrice=INT_MAX, minPrice=0, enter=INT_MAX, i=1, dummy;
+    int maxPrice=INT_MAX, minPrice=0, enter=INT_MAX, i=1;
     Date d;
     /* initalizing to a passed date */
     d.day = 1;
@@ -484,25 +499,26 @@ void findApt(char *inputLine, apartmentList *aptList){
             i++;
             enter = (short int)strtol(tokens[i], NULL, 10);
         }
-        else if (!strcmp(tokens[i], "-s")) {
+        else if (!strcmp(tokens[i], "-s\n")) {
             fromLowToHigh=true;
         }
-        else if (!strcmp(tokens[i], "-sr")) {
+        else if (!strcmp(tokens[i], "-sr\n")) {
             fromHighTolow=true;
         }
         else {
-            printf("Error parsing %s \n line number: %d ", tokens[i], __LINE__);
+            printf("Error parsing %s \nline number: %d", tokens[i], __LINE__);
             exit(1);
         }
         i++;
     }
     filterApartmentsConditions(aptList, &filteredApartmentList , maxPrice, minPrice, minNumRooms, maxNumRooms, d, enter);
+    
     if (fromLowToHigh)
-        printf("sorted fromLowToHigh");
+        MergeSort(&(filteredApartmentList.head), true);
     else if (fromHighTolow)
-        printf("sorted fromHighTolow");
-    else
-        printApartmentList(&filteredApartmentList);
+        MergeSort(&(filteredApartmentList.head), false);
+    
+    printApartmentList(&filteredApartmentList);
     
 }
 
@@ -511,11 +527,11 @@ void filterApartmentsConditions(apartmentList* apartmentlst, apartmentList* filt
                                          short int maxNumRooms,Date d, int enter){
     ApartmentNode* head = apartmentlst->head;
     while (head != NULL) {
-        if (head->data.price > minPrice
-            && head->data.price <= maxPrice
+        if (head->data.price >= minPrice
+            && head->data.price < maxPrice
             && head->data.rooms >= minNumRooms
             && head->data.rooms <= maxNumRooms
-            && compareDates(d, head->data.availableDate) == 1
+            && compareDates(d, head->data.availableDate) == -1
             && isEnteredInLastDays(head->data.entryDate, enter)) {
             ApartmentNode *apt = (ApartmentNode *) malloc(sizeof(ApartmentNode));
             checkMemoryAllocation(apt);
@@ -621,4 +637,86 @@ HistoryList makeEmptyHistoryList() {
     HistoryList result;
     result.head = NULL;
     return result;
+}
+
+// Merging two sorted lists.
+ApartmentNode* MergeSortedList(ApartmentNode* lst1, ApartmentNode* lst2, bool ascend_flag)
+{
+    ApartmentNode* result = NULL;
+
+    // Base Cases
+    if (lst1 == NULL)
+        return (lst2);
+    else if (lst2 == NULL)
+        return (lst1);
+
+    // recursively merging two lists
+    if (ascend_flag) {
+        if (lst1->data.price <= lst2->data.price) {
+            result = lst1;
+            result->next = MergeSortedList(lst1->next, lst2, ascend_flag);
+        }
+        else {
+            result = lst2;
+            result->next = MergeSortedList(lst1, lst2->next, ascend_flag);
+        }
+    } else {
+        if (lst1->data.price >= lst2->data.price) {
+            result = lst1;
+            result->next = MergeSortedList(lst1->next, lst2, ascend_flag);
+        }
+        else {
+            result = lst2;
+            result->next = MergeSortedList(lst1, lst2->next, ascend_flag);
+        }
+    }
+    return result;
+}
+
+// Splitting two into halves.
+// If the size of the list is odd, then extra element goes in the first list.
+void SplitList(ApartmentNode* source, ApartmentNode** front, ApartmentNode** back)
+{
+    ApartmentNode* ptr1;
+    ApartmentNode* ptr2;
+    ptr2 = source;
+    ptr1 = source->next;
+
+    // ptr1 is incrmented twice and ptr2 is icremented once.
+    while (ptr1 != NULL) {
+        ptr1 = ptr1->next;
+        if (ptr1 != NULL) {
+            ptr2 = ptr2->next;
+            ptr1 = ptr1->next;
+        }
+    }
+
+    // ptr2 is at the midpoint.
+    *front = source;
+    *back = ptr2->next;
+    ptr2->next = NULL;
+}
+
+
+// Merge Sort
+void MergeSort(ApartmentNode** thead, bool ascend_flag)
+{
+    ApartmentNode* head = *thead;
+    ApartmentNode* ptr1;
+    ApartmentNode* ptr2;
+
+  // Base Case
+    if ((head == NULL) || (head->next == NULL)) {
+        return;
+    }
+
+    // Splitting list
+    SplitList(head, &ptr1, &ptr2);
+
+    // Recursively sorting two lists.
+    MergeSort(&ptr1, ascend_flag);
+    MergeSort(&ptr2, ascend_flag);
+
+    // Sorted List.
+    *thead = MergeSortedList(ptr1, ptr2, ascend_flag);
 }
