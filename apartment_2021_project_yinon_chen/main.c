@@ -63,7 +63,7 @@ void printPrompt(void);
 char *getLine(void);
 
 /* Calls the relevant command by the input from the user*/
-void commandHandler(char *inputLine, apartmentList *aptList, HistoryList *historyList,char **short_term_history);
+void commandHandler(char *inputLine, apartmentList *aptList, HistoryList *historyList, char **short_term_history);
 
 /*utility functions apartment linked list*/
 apartmentList makeEmptyList(void);
