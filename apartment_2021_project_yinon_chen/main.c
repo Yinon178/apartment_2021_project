@@ -112,10 +112,12 @@ void findApt(char *inputLine, apartmentList *aptList);
 
 void deleteApt(char *inputLine, apartmentList *aptList);
 
-void gracefulExit(apartmentList *aptList);
+void gracefulExit(apartmentList *aptList, HistoryList *historyList, char **short_term_history);
 
 /* Utility */
 char **tokenize(char *line);
+
+char* strReplace(char* search, char* replace, char* subject);
 
 /* Checks if the serch conditions are met and filter the apartment list by it*/
 void filterApartmentsConditions(apartmentList* apartmentlst, apartmentList* filteredApartmentlst, int maxPrice,
@@ -160,7 +162,9 @@ void printHistoryListToFile(FILE *saveHistory, HistoryListNode *head);
 
 void printShortHistoryToFile(FILE *saveHistory, char **short_term_history);
 
+/*  ! functions */
 
+void recommand(char *inputLine, HistoryList *historyList, char **short_term_history, apartmentList *aptList);
 
 
 int main(int argc, const char *argv[]) {
@@ -259,12 +263,11 @@ void commandHandler(char *inputLine, apartmentList *aptList, HistoryList *histor
         deleteApt(inputLine, aptList);
     }
     else if (strcmp(command, "exit") == 0){
-        writeHistoryToTxtFile(historyList, short_term_history);
-        gracefulExit(aptList);
+        gracefulExit(aptList, historyList, short_term_history);
         freeHistory(short_term_history, historyList);
     }
     else if (strcmp(command, "!") == 0){
-        printf("! init");
+        recommand(inputLine, historyList, short_term_history, aptList);
     }
     else if (strcmp(command, "short_history") == 0) {
         shortHistory(short_term_history, historyList);
@@ -414,16 +417,25 @@ char *getStrFromArchive(int index, HistoryList *historyList, char **short_term_h
 {
     HistoryListNode *curr=historyList->head;
     int i=0;
-    while(curr!=NULL){
+    index--;
+    while(curr != NULL){
         if(i==index){
             return curr->command;
+
         }
+        i++;
         curr=curr->next;
     }
     for(int j=6;j>=0;j--){
-        if(i==index){
-            return short_term_history[j];
+        if(short_term_history[j] != NULL){
+            if(i==index){
+                return short_term_history[j];
+            }
+            i++;
         }
+
+
+
     }
 }
 
@@ -663,7 +675,9 @@ void filterApartmentsConditions(apartmentList* apartmentlst, apartmentList* filt
     
 }
 
-void gracefulExit(apartmentList *aptList) {
+void gracefulExit(apartmentList *aptList, HistoryList *historyList, char **short_term_history) {
+    writeHistoryToTxtFile(historyList, short_term_history);
+    printf("Good Bye!");
     freeApartList(aptList);
     exit(0);
 }
@@ -890,3 +904,110 @@ void MergeSort(ApartmentNode** thead, bool ascend_flag)
     // Sorted List.
     *thead = MergeSortedList(ptr1, ptr2, ascend_flag);
 }
+
+void recommand(char *inputLine, HistoryList *historyList, char **short_term_history, apartmentList *aptList){
+
+    if (strlen(inputLine) <= 3) { // either !! or !<num>
+        if (inputLine[1] == '!') {
+            commandHandler(short_term_history[0], aptList, historyList, short_term_history);
+        } else {
+            inputLine++;
+            int index;
+            sscanf(inputLine, "%d", &index);
+            char * archivedLine= getStrFromArchive(index, historyList, short_term_history);
+            char *tempArchivedLine = malloc(sizeof(char) * strlen(inputLine));
+            checkMemoryAllocation(tempArchivedLine);
+            strcpy(tempArchivedLine, archivedLine);
+            commandHandler(tempArchivedLine, aptList, historyList, short_term_history);
+        }
+    } else { // String switch
+        inputLine++;
+        int index;
+        char *str1, *str2;
+        str1 = calloc(sizeof(char), strrchr(inputLine,'^') - strchr(inputLine,'^'));
+        str2 = calloc(sizeof(char), strrchr(inputLine, '\n') - strrchr(inputLine,'^'));
+        sscanf(inputLine, "!%d^%[^'^']^%s",&index, str1, str2);
+        char *originString = getStrFromArchive(index, historyList, short_term_history);
+        char *replacedString= strReplace(str1,str2,originString);
+        commandHandler(replacedString, aptList, historyList, short_term_history);
+    }
+}
+
+char* strReplace(char* search, char* replace, char* subject) {
+
+    int i, j, k;
+    int searchSize = strlen(search);
+    int replaceSize = strlen(replace);
+    int size = strlen(subject);
+    char* ret;
+    if (!searchSize) {
+        ret = malloc(size + 1);
+        for (i = 0; i <= size; i++) {
+            ret[i] = subject[i];
+        }
+        return ret;
+    }
+    int retAllocSize = (strlen(subject) + 1) * 2; // Allocation size of the return string.
+
+    // let the allocation size be twice as that of the subject initially
+
+    ret = malloc(retAllocSize);
+    int bufferSize = 0; // Found characters buffer counter
+    char* foundBuffer = malloc(searchSize); // Found character bugger
+    for (i = 0, j = 0; i <= size; i++) {
+        /**
+         * Double the size of the allocated space if it's possible for us to surpass it
+         **/
+        if (retAllocSize <= j + replaceSize) {
+            retAllocSize *= 2;
+            ret = (char*) realloc(ret, retAllocSize);
+        }
+            /**
+             * If there is a hit in characters of the substring, let's add it to the
+             * character buffer
+             **/
+
+        else if (subject[i] == search[bufferSize]) {
+            foundBuffer[bufferSize] = subject[i];
+            bufferSize++;
+            /**
+             * If the found character's bugger's counter has reached the searched substring's
+             * length, then there's a hit. Let's copy the replace substring's characters
+             * onto the return string.
+             **/
+
+            if (bufferSize == searchSize) {
+                bufferSize = 0;
+                for (k = 0; k < replaceSize; k++) {
+                    ret[j++] = replace[k];
+
+                }
+            }
+        }
+
+            /**
+             * If the character is a miss, let's put everything back from the buffer
+             * to the return string, and set the found character buffer counter to 0.
+
+             **/
+
+        else {
+            for (k = 0; k < bufferSize; k++) {
+                ret[j++] = foundBuffer[k];
+            }
+            bufferSize = 0;
+
+            /**
+             * Add the current character in the subject string to the return string.
+             **/
+
+            ret[j++] = subject[i];
+        }
+    }
+    /**
+     * Free memory
+     **/
+    free(foundBuffer);
+    return ret;
+}
+
