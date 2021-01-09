@@ -62,7 +62,7 @@ void printPrompt(void);
 char *getLine(void);
 
 /* Calls the relevant command by the input from the user*/
-void commandHandler(char *inputLine, apartmentList *aptList, HistoryList *historyList);
+void commandHandler(char *inputLine, apartmentList *aptList, HistoryList *historyList,char **short_term_history);
 
 /*utility functions apartment linked list*/
 apartmentList makeEmptyList(void);
@@ -86,7 +86,7 @@ int checkIfNeedToDelete(time_t entryDate, int day);
 void deleteApartmentByDay(int day, apartmentList *lst);
 
 /*Archives the line to short term history and if needed to long term*/
-void archiveLine(char *short_term_history[]); // TODO: Chen please add long term history management
+void archiveLine(char *short_term_history[]); // TODO: Chen please add long term history management. Yinon what is this function?
 
 /* Apartment commands as described in the project instructions */
 void addApt(char *inputLine, apartmentList *aptList);
@@ -103,19 +103,41 @@ char **tokenize(char *line);
 void printApartment(Apartment *apartment);
 
 /* History commands*/
+
+void initShortList(char **short_term_history);
+
+void historyHandler(char *inputLine, char **short_term_history, HistoryList *historyList);
+
 HistoryList makeEmptyHistoryList(void);
 
-void insertToArchive(HistoryList *historyList,char *command);
+void insertToArchive(HistoryList *historyList, char *command);
 
-HistoryListNode* createNewListNode(char* command);
+HistoryListNode *createNewListNode(char *command);
 
 bool isEmptyHisList(HistoryList *historyList);
 
-void insertNodeToStartList(HistoryList *historyList, HistoryListNode *head);
+void insertNodeToEndList(HistoryList *historyList, HistoryListNode *head);
+
+void shortHistory(char **short_term_history, HistoryList *historyList);
+
+void history(char **short_term_history, HistoryList *historyList);
+
+void freeHistory(char **short_term_history, HistoryList *historyList);
+
+char *getStrFromArchive(int index, HistoryList *historyList, char **short_term_history);
+
+/* Text files */
+
+void writeHistoryToTxtFile( HistoryList *historyList, char **short_term_history);
+
+void printHistoryListToFile(FILE *saveHistory, HistoryListNode *head);
+
+void printShortHistoryToFile(FILE *saveHistory, char **short_term_history);
+
 
 int main(int argc, const char *argv[]) {
     char *short_term_history[N], *inputLine;
-    int index = 0;//for history
+    initShortList(short_term_history);
     apartmentList aptList;
     aptList = makeEmptyList();
     HistoryList historyList;
@@ -123,8 +145,8 @@ int main(int argc, const char *argv[]) {
     printPrompt();
     while (1) {
         inputLine = getLine();
-        commandHandler(inputLine, &aptList, &historyList);
-        index++;
+        commandHandler(inputLine, &aptList, &historyList, short_term_history);
+
     }
 
     return 0;
@@ -169,7 +191,7 @@ char *getLine() {
     return linep;
 }
 
-void commandHandler(char *inputLine, apartmentList *aptList, HistoryList *historyList) {
+void commandHandler(char *inputLine, apartmentList *aptList, HistoryList *historyList, char **short_term_history) {
     char command[14]; //short_history is the longest command with 13 chars
     char *spaceLocation = NULL;
     if (*inputLine != '!') {
@@ -189,84 +211,157 @@ void commandHandler(char *inputLine, apartmentList *aptList, HistoryList *histor
     *(command + (int) (spaceLocation - inputLine)) = '\0'; // marking end of string
 
     /* handler part */
-    if (strcmp(command, "find-apt") == 0)
+    if (strcmp(command, "find-apt") == 0){
+        historyHandler(inputLine, short_term_history, historyList);
         printf("find-aptt init");
-    else if (strcmp(command, "buy-apt") == 0)
+    }
+    else if (strcmp(command, "buy-apt") == 0){
+        historyHandler(inputLine, short_term_history, historyList);
         buyApt(inputLine, aptList);
-    else if (strcmp(command, "add-apt") == 0)
+
+    }
+    else if (strcmp(command, "add-apt") == 0){
+        historyHandler(inputLine, short_term_history, historyList);
         addApt(inputLine, aptList);
-    else if (strcmp(command, "history") == 0)
-        printf("history init");
-    else if (strcmp(command, "delete-apt") == 0)
+    }
+    else if (strcmp(command, "history") == 0){
+        history(short_term_history, historyList);
+    }
+    else if (strcmp(command, "delete-apt") == 0){
         deleteApt(inputLine, aptList);
-    else if (strcmp(command, "exit") == 0)
+    }
+    else if (strcmp(command, "exit") == 0){
+        writeHistoryToTxtFile(historyList, short_term_history);
         gracefulExit(aptList);
-    else if (strcmp(command, "!") == 0)
+        freeHistory(short_term_history, historyList);
+    }
+    else if (strcmp(command, "!") == 0){
         printf("! init");
-    else if (strcmp(command, "short_history") == 0)
-        printf("short_history init");
+    }
+    else if (strcmp(command, "short_history") == 0) {
+        shortHistory(short_term_history, historyList);
+    }
+}
+
+void shortHistory(char **short_term_history, HistoryList *historyList){
+    HistoryListNode *curr;
+    curr = historyList->head;
+    int indexForPrint=1;
+
+    while(curr!=NULL){
+        curr=curr->next;
+        indexForPrint++;
+    }
+    for(int i=6;i>=0;i--){
+        if(short_term_history[i]!=NULL) {
+            printf("%d: %s", indexForPrint, short_term_history[i]);
+            indexForPrint++;
+        }
+    }
+}
+
+void history(char **short_term_history, HistoryList *historyList){
+    HistoryListNode *curr;
+    curr = historyList->head;
+    int indexForPrint=1;
+
+    while(curr!=NULL){
+        printf("%d: %s",indexForPrint,curr->command);
+        curr=curr->next;
+        indexForPrint++;
+    }
+    for(int i=6;i>=0;i--){
+        if(short_term_history[i]!=NULL) {
+            printf("%d: %s", indexForPrint, short_term_history[i]);
+            indexForPrint++;
+        }
+    }
 }
 
 
-void historyHandler(char *inputLine, int index, char *short_term_history[N], HistoryList *historyList) {
+void historyHandler(char *inputLine, char **short_term_history, HistoryList *historyList) {
     char *inputLineCopy = malloc(sizeof(char) * strlen(inputLine)); // TODO: free it up in exit
     checkMemoryAllocation(inputLineCopy);
     strcpy(inputLineCopy, inputLine);
+    int currentIndex = 0;
 
-    if (index >= 6)//check if the array is full
+    if(short_term_history[0]==NULL){
+        short_term_history[0] = inputLineCopy;
+    }
+    else if(short_term_history[6] == NULL)
+    {
+        while (short_term_history[currentIndex] != NULL){
+            currentIndex++;
+        }
+        for (; currentIndex >= 0; currentIndex--) {
+            short_term_history[currentIndex + 1] = short_term_history[currentIndex];
+        }
+        short_term_history[0] = inputLineCopy;
+    }
+
+    else//if the array is full
     {
         insertToArchive(historyList, short_term_history[6]);
+        for (currentIndex = 6; currentIndex >= 0; currentIndex--) {
+            short_term_history[currentIndex + 1] = short_term_history[currentIndex];
+        }
+        short_term_history[0] = inputLineCopy;
 
     }
-    //if not full start to push string to th
 
-    for (int i = index; i >= 1; i--) {
-        short_term_history[i + 1] = short_term_history[i];
-    }
-
-
-    short_term_history[0] = inputLineCopy;
 
 }
 
-void insertToArchive(HistoryList *historyList,char *command)
-{
+void initShortList(char **short_term_history){
+    for(int i=0;i<=6;i++)
+    {
+        short_term_history[i]=NULL;
+    }
+}
+
+void insertToArchive(HistoryList *historyList, char *command) {
     HistoryListNode *newHead;
     newHead = createNewListNode(command);
-    insertNodeToStartList(historyList, newHead);
-
+    insertNodeToEndList(historyList, newHead);
 }
 
 
-HistoryListNode* createNewListNode(char* command)
-{
-    HistoryListNode* res;
-    res = (HistoryListNode*)malloc(sizeof(HistoryListNode));
-    res->command=command;
+HistoryListNode *createNewListNode(char *command) {
+    HistoryListNode *res;
+    res = (HistoryListNode *) malloc(sizeof(HistoryListNode));
+    res->command = command;
     res->next = NULL;
     return res;
 }
 
-void insertNodeToStartList(HistoryList *historyList, HistoryListNode *head)
-{
-    if (isEmptyHisList(historyList) == true)
-    {
+void insertNodeToEndList(HistoryList *historyList, HistoryListNode *head) {
+    if (isEmptyHisList(historyList)) {
         head->next = NULL;
         historyList->head = historyList->tail = head;
-    }
-    else
-    {
-        head->next = historyList->head;
-        historyList->head = head;
+    } else {
+        historyList->tail->next=head;
+        historyList->tail=head;
     }
 }
 
-bool isEmptyHisList(HistoryList *historyList)
-{
+bool isEmptyHisList(HistoryList *historyList) {
     if (historyList->head == NULL)
         return true;
     else
         return false;
+}
+
+void freeHistory(char **short_term_history, HistoryList *historyList) {
+    HistoryListNode *curr = historyList->head;
+    HistoryListNode *next = NULL;
+
+    while (curr != NULL) { //loop till the end of list
+        next = curr->next;
+        free(curr->command);
+        free(curr);
+        curr = next;
+    }
+
 }
 
 apartmentList makeEmptyList() {
@@ -278,6 +373,23 @@ apartmentList makeEmptyList() {
 
 int isEmptyList(apartmentList lst) {
     return (lst.head == NULL);
+}
+
+char *getStrFromArchive(int index, HistoryList *historyList, char **short_term_history)
+{
+    HistoryListNode *curr=historyList->head;
+    int i=0;
+    while(curr!=NULL){
+        if(i==index){
+            return curr->command;
+        }
+        curr=curr->next;
+    }
+    for(int j=6;j>=0;j--){
+        if(i==index){
+            return short_term_history[j];
+        }
+    }
 }
 
 ApartmentNode *createApartmentNode(int code, int price, int short rooms,
@@ -321,6 +433,8 @@ void checkMemoryAllocation(void *ptr) {
         exit(1);
     }
 }
+
+
 
 void deleteApartmentByCode(int code, apartmentList *lst) {
     ApartmentNode *curr = lst->head;
@@ -378,7 +492,7 @@ void freeApartList(apartmentList *lst) {
 
     while (curr != NULL) { //loop till the end of list
         next = curr->next;
-        free(curr); // TODO: BUG
+        free(curr);
         curr = next;
     }
 }
@@ -489,3 +603,53 @@ HistoryList makeEmptyHistoryList() {
     result.head = NULL;
     return result;
 }
+
+void writeHistoryToTxtFile( HistoryList *historyList, char **short_term_history)
+{
+    FILE *historyFilePtr;
+    HistoryListNode * head=historyList->head;
+    char *fileName = "history.txt";
+    historyFilePtr= fopen(fileName, "w");
+
+    if(historyFilePtr == NULL) {
+        printf("File %s does not exist\n", fileName);
+        exit(1);
+    }
+        if (head == NULL) {
+
+            printShortHistoryToFile(historyFilePtr, short_term_history);
+        }
+        else
+            {
+            printShortHistoryToFile(historyFilePtr, short_term_history);
+            printHistoryListToFile(historyFilePtr, head);
+        }
+
+
+        fclose(historyFilePtr);
+
+}
+
+void printHistoryListToFile(FILE *saveHistory, HistoryListNode *head)
+{
+
+    HistoryListNode *curr;
+    curr=head;
+
+    while(curr!=NULL){
+        printHistoryListToFile(saveHistory, curr->next);
+        fprintf(saveHistory, "%s", curr->command);
+
+    }
+
+}
+
+void printShortHistoryToFile(FILE *saveHistory, char **short_term_history)
+{
+    for(int i=6;i>=0;i--){
+        if(short_term_history[i]!=NULL){
+            fprintf(saveHistory,"%s",short_term_history[i]);
+        }
+    }
+}
+
