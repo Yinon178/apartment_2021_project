@@ -263,7 +263,6 @@ void commandHandler(char *inputLine, apartmentList *aptList, HistoryList *histor
     }
     else if (strcmp(command, "exit") == 0){
         gracefulExit(aptList, historyList, short_term_history);
-        freeHistory(short_term_history, historyList);
     }
     else if (strcmp(command, "!") == 0){
         recommand(inputLine, historyList, short_term_history, aptList);
@@ -432,10 +431,10 @@ char *getStrFromArchive(int index, HistoryList *historyList, char **short_term_h
             }
             i++;
         }
-
-
-
     }
+    printf("Error getting str from archive");
+    exit(1);
+    return NULL;
 }
 
 ApartmentNode *createApartmentNode(int code, int price, int short rooms,
@@ -583,12 +582,14 @@ void buyApt(char *inputLine, apartmentList *aptList) {
     char **tokens = NULL;
     tokens = tokenize(inputLine);
     deleteApartmentByCode((int) strtol(tokens[1], NULL, 10), aptList);
+    free(tokens);
 }
 
 void deleteApt(char *inputLine, apartmentList *aptList) {
     char **tokens = NULL;
     tokens = tokenize(inputLine);
     deleteApartmentByDay((int) strtol(tokens[2], NULL, 10), aptList);
+    free(tokens);
 }
 
 void findApt(char *inputLine, apartmentList *aptList){
@@ -650,6 +651,7 @@ void findApt(char *inputLine, apartmentList *aptList){
         MergeSort(&(filteredApartmentList.head), false);
     
     printApartmentList(&filteredApartmentList);
+    free(tokens);
     
 }
 
@@ -676,8 +678,9 @@ void filterApartmentsConditions(apartmentList* apartmentlst, apartmentList* filt
 
 void gracefulExit(apartmentList *aptList, HistoryList *historyList, char **short_term_history) {
     writeHistoryToTxtFile(historyList, short_term_history);
-    printf("Good Bye!");
     freeApartList(aptList);
+    freeHistory(short_term_history, historyList);
+    printf("Good Bye!");
     exit(0);
 }
 
@@ -801,16 +804,11 @@ void writeHistoryToTxtFile( HistoryList *historyList, char **short_term_history)
 
 void printHistoryListToFile(FILE *saveHistory, HistoryListNode *head)
 {
-
-    HistoryListNode *curr;
-    curr=head;
-
-    while(curr!=NULL){
-        printHistoryListToFile(saveHistory, curr->next);
-        fprintf(saveHistory, "%s", curr->command);
-
+    while(head!=NULL){
+        printHistoryListToFile(saveHistory, head->next);
+        fprintf(saveHistory, "%s", head->command);
+        return;
     }
-
 }
 
 void printShortHistoryToFile(FILE *saveHistory, char **short_term_history)
@@ -905,31 +903,33 @@ void MergeSort(ApartmentNode** thead, bool ascend_flag)
 }
 
 void recommand(char *inputLine, HistoryList *historyList, char **short_term_history, apartmentList *aptList){
-
+    char *tempArchivedLine = NULL, *archivedLine = NULL;
     if (strlen(inputLine) <= 3) { // either !! or !<num>
         if (inputLine[1] == '!') {
-            commandHandler(short_term_history[0], aptList, historyList, short_term_history);
+            archivedLine = short_term_history[0];
+            tempArchivedLine = malloc(sizeof(char) * strlen(inputLine));
+            checkMemoryAllocation(tempArchivedLine);
+            strcpy(tempArchivedLine, archivedLine);
+            
         } else {
             inputLine++;
             int index;
             sscanf(inputLine, "%d", &index);
-            char * archivedLine= getStrFromArchive(index, historyList, short_term_history);
-            char *tempArchivedLine = malloc(sizeof(char) * strlen(inputLine));
+            archivedLine = getStrFromArchive(index, historyList, short_term_history);
+            tempArchivedLine = malloc(sizeof(char) * strlen(inputLine));
             checkMemoryAllocation(tempArchivedLine);
             strcpy(tempArchivedLine, archivedLine);
-            commandHandler(tempArchivedLine, aptList, historyList, short_term_history);
         }
     } else { // String switch
-        inputLine++;
         int index;
         char *str1, *str2;
         str1 = calloc(sizeof(char), strrchr(inputLine,'^') - strchr(inputLine,'^'));
         str2 = calloc(sizeof(char), strrchr(inputLine, '\n') - strrchr(inputLine,'^'));
-        sscanf(inputLine, "!%d^%[^'^']^%s",&index, str1, str2);
-        char *originString = getStrFromArchive(index, historyList, short_term_history);
-        char *replacedString= strReplace(str1,str2,originString);
-        commandHandler(replacedString, aptList, historyList, short_term_history);
+        sscanf(inputLine, "!%d^%[^'^']^%[^\n]\n", &index, str1, str2);
+        archivedLine = getStrFromArchive(index, historyList, short_term_history);
+        tempArchivedLine = strReplace(str1, str2, archivedLine);
     }
+    commandHandler(tempArchivedLine, aptList, historyList, short_term_history);
 }
 
 char* strReplace(char* search, char* replace, char* subject) {
