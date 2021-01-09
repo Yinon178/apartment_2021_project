@@ -103,9 +103,6 @@ void SplitList(ApartmentNode* source, ApartmentNode** front, ApartmentNode** bac
 
 ApartmentNode* MergeSortedList(ApartmentNode* lst1, ApartmentNode* lst2, bool ascend_flag);
 
-/*Archives the line to short term history and if needed to long term*/
-void archiveLine(char *short_term_history[]); // TODO: Chen please add long term history management. Yinon what is this function?
-
 /* Apartment commands as described in the project instructions */
 void addApt(char *inputLine, apartmentList *aptList);
 
@@ -143,6 +140,7 @@ HistoryListNode* createNewHistoryNode(char* command);
 
 bool isEmptyHistoryList(HistoryList *historyList);
 
+void insertHistoryNodeToHead(HistoryList *historyList, HistoryListNode *head);
 
 void insertNodeToEndList(HistoryList *historyList, HistoryListNode *head);
 
@@ -162,7 +160,7 @@ void printHistoryListToFile(FILE *saveHistory, HistoryListNode *head);
 
 void printShortHistoryToFile(FILE *saveHistory, char **short_term_history);
 
-void insertHistoryNodeToHead(HistoryList *historyList, HistoryListNode *head);
+
 
 
 int main(int argc, const char *argv[]) {
