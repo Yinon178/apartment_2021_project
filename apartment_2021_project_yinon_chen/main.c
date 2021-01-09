@@ -142,9 +142,7 @@ HistoryListNode* createNewHistoryNode(char* command);
 
 bool isEmptyHistoryList(HistoryList *historyList);
 
-void insertHistoryNodeToHead(HistoryList *historyList, HistoryListNode *head);
-
-void insertNodeToEndList(HistoryList *historyList, HistoryListNode *head);
+void insertHistoryNodeToTail(HistoryList *historyList, HistoryListNode *head);
 
 void shortHistory(char **short_term_history, HistoryList *historyList);
 
@@ -260,6 +258,7 @@ void commandHandler(char *inputLine, apartmentList *aptList, HistoryList *histor
         history(short_term_history, historyList);
     }
     else if (strcmp(command, "delete-apt") == 0){
+        historyHandler(inputLine, short_term_history, historyList);
         deleteApt(inputLine, aptList);
     }
     else if (strcmp(command, "exit") == 0){
@@ -354,7 +353,7 @@ void initShortList(char **short_term_history){
 void insertToArchive(HistoryList *historyList, char *command) {
     HistoryListNode *newHead;
     newHead = createNewHistoryNode(command);
-    insertHistoryNodeToHead(historyList, newHead);
+    insertHistoryNodeToTail(historyList, newHead);
 
 }
 
@@ -369,7 +368,7 @@ HistoryListNode* createNewHistoryNode(char* command)
     return res;
 }
 
-void insertHistoryNodeToHead(HistoryList *historyList, HistoryListNode *head)
+void insertHistoryNodeToTail(HistoryList *historyList, HistoryListNode *head)
 {
     if (isEmptyHistoryList(historyList) == true)
     {
@@ -785,18 +784,18 @@ void writeHistoryToTxtFile( HistoryList *historyList, char **short_term_history)
         printf("File %s does not exist\n", fileName);
         exit(1);
     }
-        if (head == NULL) {
+    if (head == NULL) {
 
-            printShortHistoryToFile(historyFilePtr, short_term_history);
-        }
-        else
-            {
-            printShortHistoryToFile(historyFilePtr, short_term_history);
-            printHistoryListToFile(historyFilePtr, head);
-        }
+        printShortHistoryToFile(historyFilePtr, short_term_history);
+    }
+    else
+        {
+        printShortHistoryToFile(historyFilePtr, short_term_history);
+        printHistoryListToFile(historyFilePtr, head);
+    }
 
 
-        fclose(historyFilePtr);
+    fclose(historyFilePtr);
 
 }
 
