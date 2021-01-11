@@ -160,6 +160,10 @@ void printHistoryListToFile(FILE *saveHistory, HistoryListNode *head);
 
 void printShortHistoryToFile(FILE *saveHistory, char **short_term_history);
 
+int charcount( FILE *const fin );
+
+void readHistoryTxtFile(HistoryList *historyList, char **short_term_history);
+
 /*  ! functions */
 
 void recommand(char *inputLine, HistoryList *historyList, char **short_term_history, apartmentList *aptList);
@@ -173,6 +177,7 @@ int main(int argc, const char *argv[]) {
     HistoryList historyList;
     historyList = makeEmptyHistoryList();
     printPrompt();
+    readHistoryTxtFile(&historyList,short_term_history);
     while (1) {
         inputLine = getLine();
         commandHandler(inputLine, &aptList, &historyList, short_term_history);
@@ -775,6 +780,39 @@ HistoryList makeEmptyHistoryList() {
     return result;
 }
 
+void readHistoryTxtFile(HistoryList *historyList, char **short_term_history)
+{
+    FILE *historyFilePtr;
+    char *fileName = "history.txt", *line;
+    int count;
+    historyFilePtr= fopen(fileName, "r");
+    HistoryListNode * head=historyList->head;
+    if(historyFilePtr != NULL) {
+        while (!feof) {
+            count = charcount(historyFilePtr);
+            line = (char *) malloc(sizeof(char) * count);
+            fscanf(historyFilePtr, "%[^\n]", line);
+            historyHandler(line, short_term_history, historyList);
+        }
+    }
+}
+
+int charcount( FILE *const fin )
+{
+    int c, count;
+
+    count = 0;
+    for( ;; )
+    {
+        c = fgetc( fin );
+        if( c == EOF || c == '\n' )
+            break;
+        ++count;
+    }
+
+    return count;
+}
+
 
 void writeHistoryToTxtFile( HistoryList *historyList, char **short_term_history)
 {
@@ -1009,4 +1047,5 @@ char* strReplace(char* search, char* replace, char* subject) {
     free(foundBuffer);
     return ret;
 }
+
 
