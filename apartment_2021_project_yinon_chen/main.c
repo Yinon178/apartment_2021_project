@@ -56,6 +56,8 @@ typedef struct historyList {
 
 } HistoryList;
 
+typedef unsigned char BYTE;
+
 /*Prints application manual*/
 void printPrompt(void);
 
@@ -148,6 +150,8 @@ void shortHistory(char **short_term_history, HistoryList *historyList);
 
 void history(char **short_term_history, HistoryList *historyList);
 
+void recommand(char *inputLine, HistoryList *historyList, char **short_term_history, apartmentList *aptList);
+
 void freeHistory(char **short_term_history, HistoryList *historyList);
 
 char *getStrFromArchive(int index, HistoryList *historyList, char **short_term_history);
@@ -160,13 +164,31 @@ void printHistoryListToFile(FILE *saveHistory, HistoryListNode *head);
 
 void printShortHistoryToFile(FILE *saveHistory, char **short_term_history);
 
+
+/* Binary files - Every write function has compatible read function */
+
+/* Codes data from aprtmentNode into 3 Bytes data structure*/
+void parseToBitRepresentasion(BYTE *word1, BYTE* word2, BYTE* word3, ApartmentNode *aprtmentNode);
+
+/* Decodes data to aprtmentNode fom 3 Bytes data structure*/
+void parseFromBitRepresentasion(BYTE *word1, BYTE* word2, BYTE* word3, ApartmentNode *aprtmentNode);
+
+void writeApartmentToBinaryFile(ApartmentNode *apartmentNode, FILE *filePtr);
+
+void readApartmentFromBinaryFile(ApartmentNode *apartmentNode, FILE *filePtr);
+
+void writeApartmentsToBinaryFile(apartmentList *apartmentList);
+
+void readApartmentsFromBinaryFile(apartmentList *apartmentList);
+
 int charcount( FILE *const fin );
 
 void readHistoryTxtFile(HistoryList *historyList, char **short_term_history);
 
+
 /*  ! functions */
 
-void recommand(char *inputLine, HistoryList *historyList, char **short_term_history, apartmentList *aptList);
+
 
 
 int main(int argc, const char *argv[]) {
@@ -174,6 +196,7 @@ int main(int argc, const char *argv[]) {
     initShortList(short_term_history);
     apartmentList aptList;
     aptList = makeEmptyList();
+    readApartmentsFromBinaryFile(&aptList);
     HistoryList historyList;
     historyList = makeEmptyHistoryList();
     printPrompt();
@@ -450,9 +473,11 @@ ApartmentNode *createApartmentNode(int code, int price, int short rooms,
     time(&currTime);
     ApartmentNode *apt = (ApartmentNode *) malloc(sizeof(ApartmentNode));
     checkMemoryAllocation(apt);
-
-    char *strAdress = (char *) malloc(strlen(address) * sizeof(char));
-    strcpy(strAdress, address);
+    if (address != NULL) { // if Null we will allocate memory later
+        char *strAdress = (char *) malloc(strlen(address) * sizeof(char));
+        strcpy(strAdress, address);
+        apt->data.address = strAdress;
+    }
 
     apt->data.code = code;
     apt->data.price = price;
@@ -461,7 +486,7 @@ ApartmentNode *createApartmentNode(int code, int price, int short rooms,
     apt->data.availableDate.month = availableMonth;
     apt->data.availableDate.year = availableYear;
     apt->data.entryDate = currTime;
-    apt->data.address = strAdress;
+    
     apt->next = next;
 
     return apt;
@@ -683,9 +708,10 @@ void filterApartmentsConditions(apartmentList* apartmentlst, apartmentList* filt
 
 void gracefulExit(apartmentList *aptList, HistoryList *historyList, char **short_term_history) {
     writeHistoryToTxtFile(historyList, short_term_history);
+    writeApartmentsToBinaryFile(aptList);
     freeApartList(aptList);
     freeHistory(short_term_history, historyList);
-    printf("Good Bye!");
+    printf("Good Bye!\n");
     exit(0);
 }
 
@@ -839,6 +865,120 @@ void writeHistoryToTxtFile( HistoryList *historyList, char **short_term_history)
     fclose(historyFilePtr);
 
 }
+
+void parseToBitRepresentasion(BYTE *word1, BYTE* word2, BYTE* word3, ApartmentNode *aprtmentNode){
+    *word1 = *word2 = *word3 = 0;
+    *word1 |= (aprtmentNode->data.rooms << 4);
+    *word1 |= (aprtmentNode->data.availableDate.day >> 1);
+    *word2 |= ((aprtmentNode->data.availableDate.day & 0x01) << 7);
+    *word2 |= ((aprtmentNode->data.availableDate.month) << 3);
+    *word2 |= ((aprtmentNode->data.availableDate.year - 2000) >> 4);
+    *word3 |= (((aprtmentNode->data.availableDate.year - 2000) & 0x0F) << 4);
+    
+}
+
+void parseFromBitRepresentasion(BYTE *word1, BYTE* word2, BYTE* word3, ApartmentNode *aprtmentNode){
+    aprtmentNode->data.rooms = aprtmentNode->data.availableDate.day = aprtmentNode->data.availableDate.month = aprtmentNode->data.availableDate.year = 0;
+    aprtmentNode->data.rooms |= (*word1 >> 4);
+    aprtmentNode->data.availableDate.day |= ((*word1 & 0x0F) << 1); // every line uses mask to extract the relevant bits from the Byte
+    aprtmentNode->data.availableDate.day |= ((*word2 & 0x80) >> 7);
+    aprtmentNode->data.availableDate.month |= ((*word2 & 0x78) >> 3);
+    aprtmentNode->data.availableDate.year |= ((*word2 & 0x07) << 4);
+    aprtmentNode->data.availableDate.year |= (((*word3) & 0xF0) >> 4);
+    aprtmentNode->data.availableDate.year += 2000;
+    
+}
+
+void writeApartmentToBinaryFile(ApartmentNode *apartmentNode, FILE *filePtr){
+    short int addressSize = strlen(apartmentNode->data.address);
+    BYTE MSBWord, middleWord, LSBWord;
+    fwrite(&apartmentNode->data.code, sizeof(short int), 1, filePtr);
+    fwrite(&addressSize, sizeof(short int), 1, filePtr);
+    fwrite(apartmentNode->data.address, sizeof(char), addressSize, filePtr); // \0 will be omitted
+    fwrite(&(apartmentNode->data.price), sizeof(int), 1, filePtr);
+    fwrite(&(apartmentNode->data.entryDate), sizeof(time_t), 1, filePtr);
+    parseToBitRepresentasion(&MSBWord, &middleWord, &LSBWord, apartmentNode);
+    fwrite(&MSBWord, sizeof(BYTE), 1, filePtr);
+    fwrite(&middleWord, sizeof(BYTE), 1, filePtr);
+    fwrite(&LSBWord, sizeof(BYTE), 1, filePtr);
+    
+}
+
+void readApartmentFromBinaryFile(ApartmentNode *apartmentNode, FILE *filePtr){
+    short int addressSize;
+    BYTE MSBWord, middleWord, LSBWord;
+    fread(&apartmentNode->data.code, sizeof(short int), 1, filePtr);
+    fread(&addressSize, sizeof(short int), 1, filePtr);
+    apartmentNode->data.address = malloc(addressSize * sizeof(char));
+    fread(apartmentNode->data.address, sizeof(char), addressSize, filePtr); // \0 will be omitted
+    fread(&(apartmentNode->data.price), sizeof(int), 1, filePtr);
+    fread(&(apartmentNode->data.entryDate), sizeof(time_t), 1, filePtr);
+    fread(&MSBWord, sizeof(BYTE), 1, filePtr);
+    fread(&middleWord, sizeof(BYTE), 1, filePtr);
+    fread(&LSBWord, sizeof(BYTE), 1, filePtr);
+    parseFromBitRepresentasion(&MSBWord, &middleWord, &LSBWord, apartmentNode);
+    
+    
+}
+
+
+void writeApartmentsToBinaryFile(apartmentList *apartmentList)
+{
+    FILE *filePtr;
+    ApartmentNode *head= apartmentList->head;
+    ApartmentNode *curr= head;
+    int apartmentCount = 0;
+    char *fileName = "apartments.bin";
+    filePtr = fopen(fileName, "wb");
+
+    if(filePtr == NULL) {
+        printf("Something went wrong while opening %s for wb \n", fileName);
+        exit(1);
+    }
+    if (head == NULL) {
+        fclose(filePtr);
+        return; // no apartments to save
+    }
+    /* Counting apartments */
+    while (curr != NULL) {
+        curr = curr->next;
+        apartmentCount++;
+    }
+    fwrite(&apartmentCount, sizeof(int), 1, filePtr);
+    curr = head;
+    while (curr != NULL) {
+        writeApartmentToBinaryFile(curr, filePtr);
+        curr = curr->next;
+    }
+
+
+    fclose(filePtr);
+
+}
+
+void readApartmentsFromBinaryFile(apartmentList *apartmentList)
+{
+    FILE *filePtr;
+    ApartmentNode *curr = NULL;
+    int apartmentCount = 0;
+    char *fileName = "apartments.bin";
+    filePtr = fopen(fileName, "rb");
+
+    if(filePtr == NULL) {
+        // First run.
+        return;
+    }
+    fread(&apartmentCount, sizeof(int), 1, filePtr);
+    for (int i = 0; i < apartmentCount; i++) {
+        curr = createApartmentNode(0, 0, 0, 0, 0, 0, NULL, NULL); // init without values so it can be read from binary file
+        readApartmentFromBinaryFile(curr, filePtr);
+        insertNodeToTail(apartmentList, curr);
+    }
+
+    fclose(filePtr);
+
+}
+
 
 void printHistoryListToFile(FILE *saveHistory, HistoryListNode *head)
 {
