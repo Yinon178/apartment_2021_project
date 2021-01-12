@@ -8,6 +8,8 @@
 #include <limits.h>
 
 #define N 7
+#define APARTMENTS_FILE_NAME "apartments.bin";
+#define HISTORY_FILE_NAME "history.txt";
 
 /* global variable declaration */
 int counter = 1; // counter is the next apartment code. Starts from 1 as writen in instructions
@@ -181,8 +183,6 @@ void writeApartmentsToBinaryFile(apartmentList *apartmentList);
 
 void readApartmentsFromBinaryFile(apartmentList *apartmentList);
 
-int charcount( FILE *const fin );
-
 void readHistoryTxtFile(HistoryList *historyList, char **short_term_history);
 
 
@@ -310,7 +310,7 @@ void shortHistory(char **short_term_history, HistoryList *historyList){
         curr=curr->next;
         indexForPrint++;
     }
-    for(int i=6;i>=0;i--){
+    for(int i=(N - 1);i>=0;i--){
         if(short_term_history[i]!=NULL) {
             printf("%d: %s", indexForPrint, short_term_history[i]);
             indexForPrint++;
@@ -328,7 +328,7 @@ void history(char **short_term_history, HistoryList *historyList){
         curr=curr->next;
         indexForPrint++;
     }
-    for(int i=6;i>=0;i--){
+    for(int i=(N - 1);i>=0;i--){
         if(short_term_history[i]!=NULL) {
             printf("%d: %s", indexForPrint, short_term_history[i]);
             indexForPrint++;
@@ -346,7 +346,7 @@ void historyHandler(char *inputLine, char **short_term_history, HistoryList *his
     if(short_term_history[0]==NULL){
         short_term_history[0] = inputLineCopy;
     }
-    else if(short_term_history[6] == NULL)
+    else if(short_term_history[(N - 1)] == NULL)
     {
         while (short_term_history[currentIndex] != NULL){
             currentIndex++;
@@ -359,8 +359,8 @@ void historyHandler(char *inputLine, char **short_term_history, HistoryList *his
 
     else//if the array is full
     {
-        insertToArchive(historyList, short_term_history[6]);
-        for (currentIndex = 6; currentIndex >= 0; currentIndex--) {
+        insertToArchive(historyList, short_term_history[(N - 1)]);
+        for (currentIndex = (N - 1); currentIndex >= 0; currentIndex--) {
             short_term_history[currentIndex + 1] = short_term_history[currentIndex];
         }
         short_term_history[0] = inputLineCopy;
@@ -371,7 +371,7 @@ void historyHandler(char *inputLine, char **short_term_history, HistoryList *his
 }
 
 void initShortList(char **short_term_history){
-    for(int i=0;i<=6;i++)
+    for(int i=0;i<=(N - 1);i++)
     {
         short_term_history[i]=NULL;
     }
@@ -425,6 +425,11 @@ void freeHistory(char **short_term_history, HistoryList *historyList) {
         free(curr);
         curr = next;
     }
+    
+    for (int i = 0; i < 7; i++) {
+        if(short_term_history[i]!=NULL)
+        free(short_term_history[i]);
+    }
 
 }
 
@@ -452,7 +457,7 @@ char *getStrFromArchive(int index, HistoryList *historyList, char **short_term_h
         i++;
         curr=curr->next;
     }
-    for(int j=6;j>=0;j--){
+    for(int j=(N - 1);j>=0;j--){
         if(short_term_history[j] != NULL){
             if(i==index){
                 return short_term_history[j];
@@ -572,6 +577,7 @@ void freeApartList(apartmentList *lst) {
 
     while (curr != NULL) { //loop till the end of list
         next = curr->next;
+        free(curr->data.address);
         free(curr);
         curr = next;
     }
@@ -628,28 +634,28 @@ void findApt(char *inputLine, apartmentList *aptList){
     int maxPrice=INT_MAX, minPrice=0, enter=INT_MAX, i=1;
     Date d;
     /* initalizing to a passed date */
-    d.day = 1;
-    d.month = 1;
-    d.year = 2020;
+    d.day = 31;
+    d.month = 12;
+    d.year = 2127; // maximal supported date of app
     short int minNumRooms=-1, maxNumRooms=INT8_MAX;
     char **tokens = tokenize(inputLine);
     bool fromLowToHigh=false, fromHighTolow=false;
     
     /* Parsing string */
     while (tokens[i] != NULL) {
-        if (!strcmp(tokens[i], "–MaxPrice")) {
+        if (!strcmp(tokens[i], "-MaxPrice")) {
             i++;
             maxPrice = (int)strtol(tokens[i], NULL, 10);
         }
-        else if (!strcmp(tokens[i], "–MinPrice")) {
+        else if (!strcmp(tokens[i], "-MinPrice")) {
             i++;
             minPrice = (int)strtol(tokens[i], NULL, 10);
         }
-        else if (!strcmp(tokens[i], "–MinNumRooms")) {
+        else if (!strcmp(tokens[i], "-MinNumRooms")) {
             i++;
             minNumRooms = (short int)strtol(tokens[i], NULL, 10);
         }
-        else if (!strcmp(tokens[i], "–MaxNumRooms")) {
+        else if (!strcmp(tokens[i], "-MaxNumRooms")) {
             i++;
             maxNumRooms = (short int)strtol(tokens[i], NULL, 10);
         }
@@ -657,7 +663,7 @@ void findApt(char *inputLine, apartmentList *aptList){
             i++;
             sscanf(tokens[i], "%2hd%2hd%4hd", &d.day, &d.month, &d.year);
         }
-        else if (!strcmp(tokens[i], "–Enter")) {
+        else if (!strcmp(tokens[i], "-Enter")) {
             i++;
             enter = (short int)strtol(tokens[i], NULL, 10);
         }
@@ -694,7 +700,7 @@ void filterApartmentsConditions(apartmentList* apartmentlst, apartmentList* filt
             && head->data.price < maxPrice
             && head->data.rooms >= minNumRooms
             && head->data.rooms <= maxNumRooms
-            && compareDates(d, head->data.availableDate) == -1
+            && compareDates(d, head->data.availableDate) == 1
             && isEnteredInLastDays(head->data.entryDate, enter)) {
             ApartmentNode *apt = (ApartmentNode *) malloc(sizeof(ApartmentNode));
             checkMemoryAllocation(apt);
@@ -806,45 +812,47 @@ HistoryList makeEmptyHistoryList() {
     return result;
 }
 
-void readHistoryTxtFile(HistoryList *historyList, char **short_term_history)
+void  readHistoryTxtFile(HistoryList *historyList, char **short_term_history)
 {
     FILE *historyFilePtr;
     char *fileName = "history.txt", *line;
-    int count;
+    char **filelines = NULL;
+    int lineLen, numOfLines = 0 ;
     historyFilePtr= fopen(fileName, "r");
-    HistoryListNode * head=historyList->head;
     if(historyFilePtr != NULL) {
-        while (!feof) {
-            count = charcount(historyFilePtr);
-            line = (char *) malloc(sizeof(char) * count);
-            fscanf(historyFilePtr, "%[^\n]", line);
-            historyHandler(line, short_term_history, historyList);
+        while (1) {
+            fscanf(historyFilePtr, "%d", &lineLen);
+            if (feof(historyFilePtr)) {
+                break;
+            }
+            filelines = realloc(filelines, (sizeof(char*)* (numOfLines+1)));
+            line = (char *) malloc(sizeof(char) * (lineLen + 1)); // adding 1 chars  for "\0"
+            
+            for (int cursor = 0; cursor < lineLen; cursor++) {
+                line[cursor] = fgetc(historyFilePtr);
+            }
+            
+            line[lineLen] = '\0';
+            filelines[numOfLines] = line;
+            numOfLines++;
         }
+        
+        for (int i = (numOfLines-1); i >= 0; i--) { // calling history handler backwards bcause file is written backwards
+            historyHandler(filelines[i], short_term_history, historyList);
+        }
+        
+        free(filelines);
     }
+    else
+        return; // file doesn't exist yet
+    fclose(historyFilePtr);
 }
-
-int charcount( FILE *const fin )
-{
-    int c, count;
-
-    count = 0;
-    for( ;; )
-    {
-        c = fgetc( fin );
-        if( c == EOF || c == '\n' )
-            break;
-        ++count;
-    }
-
-    return count;
-}
-
 
 void writeHistoryToTxtFile( HistoryList *historyList, char **short_term_history)
 {
     FILE *historyFilePtr;
     HistoryListNode * head=historyList->head;
-    char *fileName = "history.txt";
+    char *fileName = HISTORY_FILE_NAME;
     historyFilePtr= fopen(fileName, "w");
 
     if(historyFilePtr == NULL) {
@@ -856,7 +864,7 @@ void writeHistoryToTxtFile( HistoryList *historyList, char **short_term_history)
         printShortHistoryToFile(historyFilePtr, short_term_history);
     }
     else
-        {
+    {
         printShortHistoryToFile(historyFilePtr, short_term_history);
         printHistoryListToFile(historyFilePtr, head);
     }
@@ -909,7 +917,8 @@ void readApartmentFromBinaryFile(ApartmentNode *apartmentNode, FILE *filePtr){
     BYTE MSBWord, middleWord, LSBWord;
     fread(&apartmentNode->data.code, sizeof(short int), 1, filePtr);
     fread(&addressSize, sizeof(short int), 1, filePtr);
-    apartmentNode->data.address = malloc(addressSize * sizeof(char));
+    apartmentNode->data.address = malloc((addressSize+1) * sizeof(char));
+    apartmentNode->data.address[addressSize] = '\0';
     fread(apartmentNode->data.address, sizeof(char), addressSize, filePtr); // \0 will be omitted
     fread(&(apartmentNode->data.price), sizeof(int), 1, filePtr);
     fread(&(apartmentNode->data.entryDate), sizeof(time_t), 1, filePtr);
@@ -928,7 +937,7 @@ void writeApartmentsToBinaryFile(apartmentList *apartmentList)
     ApartmentNode *head= apartmentList->head;
     ApartmentNode *curr= head;
     int apartmentCount = 0;
-    char *fileName = "apartments.bin";
+    char *fileName = APARTMENTS_FILE_NAME;
     filePtr = fopen(fileName, "wb");
 
     if(filePtr == NULL) {
@@ -944,6 +953,7 @@ void writeApartmentsToBinaryFile(apartmentList *apartmentList)
         curr = curr->next;
         apartmentCount++;
     }
+    fwrite(&counter, sizeof(int), 1, filePtr);
     fwrite(&apartmentCount, sizeof(int), 1, filePtr);
     curr = head;
     while (curr != NULL) {
@@ -961,13 +971,14 @@ void readApartmentsFromBinaryFile(apartmentList *apartmentList)
     FILE *filePtr;
     ApartmentNode *curr = NULL;
     int apartmentCount = 0;
-    char *fileName = "apartments.bin";
+    char *fileName = APARTMENTS_FILE_NAME;
     filePtr = fopen(fileName, "rb");
 
     if(filePtr == NULL) {
         // First run.
         return;
     }
+    fread(&counter, sizeof(int), 1, filePtr);
     fread(&apartmentCount, sizeof(int), 1, filePtr);
     for (int i = 0; i < apartmentCount; i++) {
         curr = createApartmentNode(0, 0, 0, 0, 0, 0, NULL, NULL); // init without values so it can be read from binary file
@@ -984,6 +995,7 @@ void printHistoryListToFile(FILE *saveHistory, HistoryListNode *head)
 {
     while(head!=NULL){
         printHistoryListToFile(saveHistory, head->next);
+        fprintf(saveHistory, "%d", (int)strlen(head->command));
         fprintf(saveHistory, "%s", head->command);
         return;
     }
@@ -991,8 +1003,9 @@ void printHistoryListToFile(FILE *saveHistory, HistoryListNode *head)
 
 void printShortHistoryToFile(FILE *saveHistory, char **short_term_history)
 {
-    for(int i=6;i>=0;i--){
+    for(int i=0;i < N;i++){
         if(short_term_history[i]!=NULL){
+            fprintf(saveHistory, "%d", (int)strlen(short_term_history[i]));
             fprintf(saveHistory,"%s",short_term_history[i]);
         }
     }
@@ -1113,9 +1126,9 @@ void recommand(char *inputLine, HistoryList *historyList, char **short_term_hist
 char* strReplace(char* search, char* replace, char* subject) {
 
     int i, j, k;
-    int searchSize = strlen(search);
-    int replaceSize = strlen(replace);
-    int size = strlen(subject);
+    int searchSize = (int)strlen(search);
+    int replaceSize = (int)strlen(replace);
+    int size = (int)strlen(subject);
     char* ret;
     if (!searchSize) {
         ret = malloc(size + 1);
@@ -1124,7 +1137,7 @@ char* strReplace(char* search, char* replace, char* subject) {
         }
         return ret;
     }
-    int retAllocSize = (strlen(subject) + 1) * 2; // Allocation size of the return string.
+    int retAllocSize = (int)((strlen(subject) + 1) * 2); // Allocation size of the return string.
 
     // let the allocation size be twice as that of the subject initially
 
